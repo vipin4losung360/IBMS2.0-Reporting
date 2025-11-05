@@ -1,7 +1,7 @@
 // ***************************************************************
 // *** STEP A: PASTE YOUR COPIED CSV URL HERE (inside the quotes)***
 // ***************************************************************
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS28maOKEZTzlyYj1aNBCQueFiOXycVN_JkQcjPVPl1XFHWTjTel9FA0n0o7GEWAU1Wk93lt4hOMY1s/pub?gid=1596417357&single=true&output=csv'; 
+const CSV_URL = 'https://cors-anywhere.herokuapp.com/https://docs.google.com/spreadsheets/d/e/2PACX-1vS28maOKEZTzlyYj1aNBCQueFiOXycVN_JkQcjPVPl1XFHWTjTel9FA0n0o7GEWAU1Wk93lt4hOMY1s/pub?gid=1596417357&single=true&output=csv'; 
 
 // This function tells the Robot how to fetch the data
 function loadCSV() {
@@ -44,4 +44,5 @@ function loadCSV() {
 // Start the Robot when the page is ready
 $(document).ready(function() {
     loadCSV();
+
 });
