@@ -8,7 +8,7 @@ function loadCSV() {
         url: CSV_URL,
         dataType: "text",
         success: function(data) {
-            // Split the CSV text into rows and columns
+            
             const allRows = data.split(/\r?\n|\r/);
             const headers = allRows[0].split(',');
             const rows = allRows.slice(1).map(row => row.split(','));
@@ -16,7 +16,9 @@ function loadCSV() {
             // Prepare the structure for DataTables
             const columns = headers.map(header => ({
                 title: header,
-                data: headers.indexOf(header)
+                data: headers.indexOf(header),
+                // *** CORRECTION: Disable sorting by clicking the header area ***
+                orderable: false 
             }));
             
             // Initialize the DataTable
@@ -24,58 +26,88 @@ function loadCSV() {
                 data: rows,
                 columns: columns,
                 
-                // (B)uttons, (t)able, (r)emaining processing - removes global search and pagination info
-                dom: 'Btr', 
+                dom: 'Btr', // (B)uttons, (t)able, (r)emaining processing
+                paging: false, // Single-page view
+                searching: false, // Disable global search
+                order: [[ 0, 'asc' ]], // Default sort on first column
                 
-                // Disable pagination to show all rows on one page
-                paging: false, 
-                
-                // Disable global searching since we use column searching
-                searching: false, 
-
-                // Default Sorting: Sorts by the first column (0) ascending ('asc')
-                order: [[ 0, 'asc' ]], 
-
-                // --- Download Buttons ---
                 buttons: [
                     'csvHtml5',
                     'excelHtml5'
                 ],
                 
-                // --- Select Dropdown Filtering Logic (Spreadsheet style) ---
+                // --- Custom Header/Filter/Sort Logic ---
                 initComplete: function () {
-                    this.api()
-                        .columns()
-                        .every(function () {
-                            const column = this;
-                            
-                            // 1. Create the select list for each column
-                            const select = $('<select><option value=""></option></select>')
-                                .appendTo($(column.header()))
-                                .on('change', function () {
-                                    // Escape special characters and perform the search
-                                    const val = $.fn.dataTable.util.escapeRegex($(this).val());
-                                    // Search uses regex to match exact value from dropdown
-                                    column.search(val ? '^' + val + '$' : '', true, false).draw();
-                                });
-                            
-                            // 2. Clear the header text and append the select dropdown
-                            $(column.header()).html(''); 
-                            $(column.header()).append(select);
-                            
-                            // 3. Populate the select list with unique values from the data
-                            column.data().unique().sort().each(function (d, j) {
-                                select.append('<option value="' + d + '">' + d + '</option>');
+                    const api = this.api();
+
+                    api.columns().every(function (colIdx) {
+                        const column = this;
+                        const header = $(column.header());
+                        const originalText = header.text();
+
+                        // 1. Clear the header content
+                        header.html('');
+
+                        // 2. Create a container for the title and controls
+                        const titleContainer = $('<div>')
+                            .css({
+                                'display': 'flex',
+                                'justify-content': 'space-between',
+                                'align-items': 'center',
+                                'width': '100%'
+                            })
+                            .appendTo(header);
+
+                        // 3. Add the header title
+                        $('<span>').text(originalText).appendTo(titleContainer);
+
+                        // 4. Create a container for the sort arrows and filter dropdown
+                        const controlsContainer = $('<div>')
+                            .css('display', 'flex')
+                            .appendTo(titleContainer);
+
+                        // --- Add Sort Arrows (for manual sorting) ---
+                        const sortAsc = $('<span>')
+                            .html(' &#x25B2; ') // Up arrow
+                            .attr('title', 'Sort Ascending')
+                            .css('cursor', 'pointer')
+                            .on('click', function () {
+                                column.order('asc').draw();
+                            })
+                            .appendTo(controlsContainer);
+
+                        const sortDesc = $('<span>')
+                            .html(' &#x25BC; ') // Down arrow
+                            .attr('title', 'Sort Descending')
+                            .css('cursor', 'pointer')
+                            .on('click', function () {
+                                column.order('desc').draw();
+                            })
+                            .appendTo(controlsContainer);
+
+
+                        // --- Add Filter Dropdown (Spreadsheet style) ---
+                        const select = $('<select><option value="">Filter</option></select>')
+                            .appendTo(controlsContainer)
+                            .css('margin-left', '5px') 
+                            .on('change', function () {
+                                const val = $.fn.dataTable.util.escapeRegex($(this).val());
+                                // Search performs exact match filtering
+                                column.search(val ? '^' + val + '$' : '', true, false).draw();
                             });
+                        
+                        // Populate the select list with unique values
+                        column.data().unique().sort().each(function (d, j) {
+                            select.append('<option value="' + d + '">' + d + '</option>');
                         });
+                    });
                 }
             });
             
-            // Remove the 'Loading' message after successful data load
+            // Remove the 'Loading' message
             $('p').remove();
         },
         error: function() {
-            // Display instructions if the data fails to load (likely proxy issue)
             console.log("AJAX Error: Data fetch failed.");
             $('p').html('Oops! Could not load the data. Please ensure you have **authorized the proxy** by visiting this link once: <a href="https://cors-anywhere.herokuapp.com/" target="_blank">https://cors-anywhere.herokuapp.com/</a>');
         }
