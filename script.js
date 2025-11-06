@@ -1,6 +1,5 @@
 // ***************************************************************
-// *** STEP A: PASTE YOUR COPIED CSV URL HERE (WITH PROXY) ***
-// NOTE: This must be updated with your specific Google Sheet publish link.
+// *** ACTION REQUIRED: UPDATE THIS LINE WITH YOUR PROXIED CSV URL ***
 // ***************************************************************
 const CSV_URL = 'https://cors-anywhere.herokuapp.com/https://docs.google.com/spreadsheets/d/e/2PACX-1vS28maOKEZTzlyYj1aNBCQueFiOXycVN_JkQcjPVPl1XFHWTjTel9FA0n0o7GEWAU1Wk93lt4hOMY1s/pub?gid=1596417357&single=true&output=csv'; 
 
@@ -43,29 +42,33 @@ function loadCSV() {
                     'excelHtml5'
                 ],
                 
-                // --- Column Filtering Logic ---
+                // --- Select Dropdown Filtering Logic (Spreadsheet style) ---
                 initComplete: function () {
                     this.api()
                         .columns()
                         .every(function () {
                             const column = this;
-                            // Create an input text box for each column filter
-                            const input = $('<input type="text" class="form-control form-control-sm" placeholder="Filter ' + $(column.header()).text() + '" />')
-                                .appendTo($(column.header())) // Append the input to the header
-                                .on('keyup change clear', function () {
-                                    if (column.search() !== this.value) {
-                                        column.search(this.value).draw();
-                                    }
+                            
+                            // 1. Create the select list for each column
+                            const select = $('<select><option value=""></option></select>')
+                                .appendTo($(column.header()))
+                                .on('change', function () {
+                                    // Escape special characters and perform the search
+                                    const val = $.fn.dataTable.util.escapeRegex($(this).val());
+                                    // Search uses regex to match exact value from dropdown
+                                    column.search(val ? '^' + val + '$' : '', true, false).draw();
                                 });
                             
-                            // To make the filter appear below the header name (if it's not clearing the header)
-                            // We explicitly adjust the header's content to ensure only the filter input remains, 
-                            // or append the input after the header text.
-                            // Let's use a wrapper div to ensure the filter input is always visible.
-                            $(column.header()).html(''); // Clear the header content
-                            $(column.header()).append(input);
+                            // 2. Clear the header text and append the select dropdown
+                            $(column.header()).html(''); 
+                            $(column.header()).append(select);
+                            
+                            // 3. Populate the select list with unique values from the data
+                            column.data().unique().sort().each(function (d, j) {
+                                select.append('<option value="' + d + '">' + d + '</option>');
+                            });
                         });
-                }, 
+                }
             });
             
             // Remove the 'Loading' message after successful data load
@@ -83,4 +86,3 @@ function loadCSV() {
 $(document).ready(function() {
     loadCSV();
 });
-
