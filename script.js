@@ -9,12 +9,11 @@ function formatDate(dateString) {
                         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     
     // Regex to match MM/DD/YYYY with optional time (HH:MM:SS) using the '/' separator
-    // Example input: 10/13/2025 12:01:00
     const regex = /(\d{1,2})\/(\d{1,2})\/(\d{4})(\s.*)?/;
     const match = dateString.match(regex);
     
     if (match) {
-        // match[1] = MM, match[2] = DD, match[2] = YYYY, match[4] = optional time
+        // match[1] = MM, match[2] = DD, match[3] = YYYY, match[4] = optional time
         let monthIndex = parseInt(match[1]) - 1; // Month is 0-indexed for array
         const day = match[2];
         const year = match[3];
@@ -41,7 +40,8 @@ function loadCSV() {
         success: function(data) {
             
             const allRows = data.split(/\r?\n|\r/);
-            const headers = allRows[0].split(',').map(h => h.trim()); // Read and trim headers
+            // Headers are read directly from the first row of the CSV
+            const headers = allRows[0].split(',').map(h => h.trim()); 
             let rows = allRows.slice(1).map(row => row.split(','));
 
             // Loop through ALL rows and cells to apply date formatting
@@ -56,21 +56,6 @@ function loadCSV() {
                 orderable: false 
             }));
             
-            // --- FIXED: Define the clean headers for CSV export only. 
-            // This order MUST match the columns in your Google Sheet exactly.
-            const cleanHeaders = [
-                'Appt ID (External)', 'Vehicle Registration Number', 'Vehicle Size', 
-                'Gate In Time', 'No. of Invoices', 'Units as Per Documents', 
-                'On Dock Time', 'Good Units', 'Damaged Units', 'Short Units', 
-                'Total Units', 'Manpower Deployed', 'Unloading Start Time', 
-                'Unloading End Time', 'Damaged Units Loaded', 'Gate Out Time', 
-                'POD', 'Validated', 'CB', 'Null Status', 'Absconding', 
-                'Appt Type', 'FC', 'Client', 'Brand', 
-                'Item Classification', 'Units', 'Notification Date', 
-                'Requisite Date', 'Scheduled Date'
-            ];
-            // --- END FIXED SECTION ---
-
             // Initialize the DataTable
             const table = $('#myDataTable').DataTable({
                 data: rows,
@@ -81,19 +66,14 @@ function loadCSV() {
                 searching: false, // Disable global search
                 order: [[ 0, 'asc' ]], // Default sort on first column
                 
-                // --- Download Button Fix: Only CSV, with clean header logic ---
+                // --- Download Button Fix: Use CSV file headers directly ---
                 buttons: [
                     {
                         extend: 'csvHtml5',
-                        customize: function(csv) {
-                            // Split the CSV into rows
-                            const rows = csv.split('\n');
-                            
-                            // Replace the first row (the messy header) with the clean headers
-                            rows[0] = '"' + cleanHeaders.join('","') + '"';
-
-                            return rows.join('\n');
-                        }
+                        // This option tells the button to use the column titles 
+                        // that were established by the 'columns' configuration above, 
+                        // effectively bypassing the messy HTML headers.
+                        header: true, 
                     }
                 ],
                 // --- End Download Button Fix ---
@@ -105,7 +85,7 @@ function loadCSV() {
                     api.columns().every(function (colIdx) {
                         const column = this;
                         const header = $(column.header());
-                        const originalText = header.text();
+                        const originalText = column.settings()[0].aoColumns[colIdx].sTitle; // Get clean title
 
                         header.html('');
 
