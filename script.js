@@ -59,21 +59,14 @@ function formatDate(dateString) {
                         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     
     // Regex handles various M/D/YYYY formats with optional time
-    // Group 1: Month (1 or 2 digits)
-    // Group 2: Day (1 or 2 digits)
-    // Group 3: Year (4 digits)
-    // Group 4: Optional Time/rest of the string
     const regex = /(\d{1,2})\/(\d{1,2})\/(\d{4})(.*)?/;
     const match = cleanDateString.match(regex);
     
     if (match) {
-        // match[1] = MM, match[2] = DD, match[3] = YYYY
         let monthIndex = parseInt(match[1]) - 1;
-        // Ensure day is padded for DD format
         const day = match[2].padStart(2, '0');
         const year = match[3];
         
-        // Match[4] contains the time/rest (if present)
         const time = match[4] ? match[4].trim() : '';
         const monthAbbr = monthNames[monthIndex];
 
@@ -83,7 +76,6 @@ function formatDate(dateString) {
         }
         return formattedDate;
     }
-    // If the regex doesn't match, return the cleaned string
     return cleanDateString; 
 }
 
@@ -97,28 +89,20 @@ function loadCSV() {
             const dataRowsOnly = allRows.slice(1); 
             const csvHeaders = allRows[0].split(',').map(h => h.trim());
 
-            // 1. Create a map for quick lookup of original CSV index by header name
+            // 1. Create maps for column reordering/formatting
             const headerIndexMap = new Map(csvHeaders.map((header, index) => [header, index]));
-
-            // 2. Map MASTER_HEADERS to the original CSV column index (including Row ID = index 0)
             const masterHeaderMap = new Map();
             MASTER_HEADERS.forEach(masterHeader => {
-                let originalIndex;
-                if (masterHeader === "Row ID") {
-                    originalIndex = 0; // Map 'Row ID' to the raw CSV's first column
-                } else {
-                    originalIndex = headerIndexMap.get(masterHeader);
-                }
+                let originalIndex = (masterHeader === "Row ID") ? 0 : headerIndexMap.get(masterHeader);
                 if (originalIndex !== undefined) {
                     masterHeaderMap.set(masterHeader, originalIndex);
                 }
             });
 
-            // 3. Reconstruct the data rows according to the MASTER_HEADERS order and apply formatting
+            // 2. Reconstruct the data rows
             let processedRows = dataRowsOnly
                 .filter(row => row.trim() !== '')
                 .map(row => {
-                    // Splitting handles standard CSV, but we use the map to correctly locate data
                     const originalCells = row.split(',');
                     const newRow = []; 
                     
@@ -127,13 +111,10 @@ function loadCSV() {
                         let cellValue = '';
 
                         if (originalIndex !== undefined && originalCells[originalIndex] !== undefined) {
-                            // Trim the raw cell value
                             cellValue = originalCells[originalIndex].trim();
                         }
                         
-                        // Apply date formatting to all identified date/time columns
                         if (DATE_HEADERS.includes(masterHeader)) {
-                            // Use the new, robust formatDate function
                             cellValue = formatDate(cellValue);
                         }
                         
@@ -143,7 +124,7 @@ function loadCSV() {
                     return newRow;
                 });
             
-            // 4. Prepare the DataTables columns based on MASTER_HEADERS
+            // 3. Prepare the DataTables columns
             const columns = MASTER_HEADERS.map((header, index) => ({
                 title: header,
                 data: index,
@@ -160,10 +141,35 @@ function loadCSV() {
                 searching: false,
                 order: [[ 0, 'asc' ]],
                 
-                // --- CSV Download Fix (Unchanged) ---
+                // --- 🚀 Export Buttons (Including new "Copy" button) ---
                 buttons: [
+                    {
+                        extend: 'copyHtml5',
+                        text: 'Copy to Excel (TSV)', // Custom button text
+                        title: 'Data Export',
+                        exportOptions: {
+                            modifier: {
+                                page: 'all', 
+                                search: 'applied' 
+                            },
+                            // Use the cell's displayed content, not the raw source data
+                            format: {
+                                body: function ( data, row, column, node ) {
+                                    return $(node).html();
+                                }
+                            }
+                        },
+                        // Customizes the header row for the copy action
+                        header: true,
+                        customize: function ( win ) {
+                            // The actual button uses the displayed headers, but we can ensure they are clean
+                            var headerRow = '"' + MASTER_HEADERS.join('"\t"') + '"'; // Use tab separator for Excel copy
+                            win.document.querySelector('body > table > thead > tr').innerHTML = headerRow;
+                        }
+                    },
                     {
                         extend: 'csvHtml5',
+                        text: 'Download CSV', // Custom button text
                         customize: function(csv) {
                             const rows = csv.split('\n');
                             rows[0] = '"' + MASTER_HEADERS.join('","') + '"';
@@ -182,14 +188,14 @@ function loadCSV() {
                         }
                     }
                 ],
-                // --- End CSV Download Fix ---
+                // --- End Export Buttons ---
                 
-                // Forcefully clear all header cells before custom rendering
+                // Header logic (unchanged)
                 headerCallback: function( thead, data, start, end, display ) {
                     $(thead).find('th').empty();
                 },
                 
-                // --- Custom Header/Filter/Sort Logic (Unchanged) ---
+                // Custom Header/Filter/Sort Logic (unchanged)
                 initComplete: function () {
                     const api = this.api();
 
