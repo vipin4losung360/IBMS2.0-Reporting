@@ -1,0 +1,34 @@
+/* Custom CSS for a professional look */
+
+/* Light gray background for the whole page */
+body {
+    background-color: #f4f7f6;
+}
+
+/* Professional deep blue for the title with an underline */
+h1 {
+    color: #004d99; 
+    border-bottom: 3px solid #004d99;
+    padding-bottom: 10px;
+}
+
+/* Style the table container slightly for depth */
+.container-fluid {
+    background-color: white;
+    padding: 20px;
+    margin-top: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+}
+
+/* Highlight the table header rows with a clean blue */
+#myDataTable thead th {
+    background-color: #007bff !important; /* Standard Bootstrap Blue */
+    color: white;
+    font-weight: 600; /* Bolder text for headers */
+}
+
+/* Center the search/filter box if possible (depends on DataTables structure) */
+.dataTables_filter {
+    padding-bottom: 15px;
+}
