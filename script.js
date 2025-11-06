@@ -51,12 +51,19 @@ function loadCSV() {
                             const column = this;
                             // Create an input text box for each column filter
                             const input = $('<input type="text" class="form-control form-control-sm" placeholder="Filter ' + $(column.header()).text() + '" />')
-                                .appendTo($(column.header()).empty())
+                                .appendTo($(column.header())) // Append the input to the header
                                 .on('keyup change clear', function () {
                                     if (column.search() !== this.value) {
                                         column.search(this.value).draw();
                                     }
                                 });
+                            
+                            // To make the filter appear below the header name (if it's not clearing the header)
+                            // We explicitly adjust the header's content to ensure only the filter input remains, 
+                            // or append the input after the header text.
+                            // Let's use a wrapper div to ensure the filter input is always visible.
+                            $(column.header()).html(''); // Clear the header content
+                            $(column.header()).append(input);
                         });
                 }, 
             });
@@ -76,3 +83,4 @@ function loadCSV() {
 $(document).ready(function() {
     loadCSV();
 });
+
