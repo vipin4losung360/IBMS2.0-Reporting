@@ -66,9 +66,7 @@ function loadCSV() {
         success: function(data) {
             
             const allRows = data.split(/\r?\n|\r/);
-            // *** CRITICAL FIX: Ensure the header row is removed from data sent to DataTables ***
-            // The data variable holds the raw CSV text. Remove the first line (headers) here.
-            // This prevents the original CSV headers from ever being processed.
+            // Remove the header row from data sent to DataTables
             const dataRowsOnly = allRows.slice(1);
             
             // Split the remaining rows into cells (array of arrays)
@@ -109,6 +107,12 @@ function loadCSV() {
                     }
                 ],
                 // --- End Download Button Fix ---
+                
+                // *** NEW: Forcefully clear all header cells before custom rendering ***
+                headerCallback: function( thead, data, start, end, display ) {
+                    $(thead).find('th').empty();
+                },
+                // *******************************************************************
                 
                 // --- Custom Header/Filter/Sort Logic ---
                 initComplete: function () {
