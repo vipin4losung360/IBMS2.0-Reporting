@@ -3,6 +3,26 @@
 // ***************************************************************
 const CSV_URL = 'https://cors-anywhere.herokuapp.com/https://docs.google.com/spreadsheets/d/e/2PACX-1vS28maOKEZTzlyYj1aNBCQueFiOXycVN_JkQcjPVPl1XFHWTjTel9FA0n0o7GEWAU1Wk93lt4hOMY1s/pub?gid=1596417357&single=true&output=csv'; 
 
+// Helper function to convert MM-DD-YYYY to DD-MM-YYYY
+function formatDate(dateString) {
+    // Regex to match MM-DD-YYYY with optional time (HH:MM:SS)
+    const regex = /(\d{1,2})-(\d{1,2})-(\d{4})(\s.*)?/;
+    const match = dateString.match(regex);
+    
+    if (match) {
+        // match[1] = MM, match[2] = DD, match[3] = YYYY, match[4] = optional time
+        const month = match[1];
+        const day = match[2];
+        const year = match[3];
+        const time = match[4] || ''; // Include time if present, otherwise empty string
+
+        // Format: DD-MM-YYYY HH:MM:SS
+        return `${day}-${month}-${year}${time}`;
+    }
+    return dateString; // Return original string if no date pattern is found
+}
+
+
 function loadCSV() {
     $.ajax({
         url: CSV_URL,
@@ -11,13 +31,19 @@ function loadCSV() {
             
             const allRows = data.split(/\r?\n|\r/);
             const headers = allRows[0].split(',');
-            const rows = allRows.slice(1).map(row => row.split(','));
+            // Remove the header row from the data array
+            let rows = allRows.slice(1).map(row => row.split(','));
+
+            // *** NEW: Loop through ALL rows and cells to apply date formatting ***
+            rows = rows.map(row => 
+                row.map(cell => formatDate(cell.trim()))
+            );
+            // *** END NEW SECTION ***
 
             // Prepare the structure for DataTables
             const columns = headers.map(header => ({
                 title: header,
                 data: headers.indexOf(header),
-                // *** CORRECTION: Disable sorting by clicking the header area ***
                 orderable: false 
             }));
             
@@ -26,10 +52,10 @@ function loadCSV() {
                 data: rows,
                 columns: columns,
                 
-                dom: 'Btr', // (B)uttons, (t)able, (r)emaining processing
-                paging: false, // Single-page view
-                searching: false, // Disable global search
-                order: [[ 0, 'asc' ]], // Default sort on first column
+                dom: 'Btr', 
+                paging: false, 
+                searching: false, 
+                order: [[ 0, 'asc' ]], 
                 
                 buttons: [
                     'csvHtml5',
@@ -45,10 +71,8 @@ function loadCSV() {
                         const header = $(column.header());
                         const originalText = header.text();
 
-                        // 1. Clear the header content
                         header.html('');
 
-                        // 2. Create a container for the title and controls
                         const titleContainer = $('<div>')
                             .css({
                                 'display': 'flex',
@@ -58,17 +82,15 @@ function loadCSV() {
                             })
                             .appendTo(header);
 
-                        // 3. Add the header title
                         $('<span>').text(originalText).appendTo(titleContainer);
 
-                        // 4. Create a container for the sort arrows and filter dropdown
                         const controlsContainer = $('<div>')
                             .css('display', 'flex')
                             .appendTo(titleContainer);
 
                         // --- Add Sort Arrows (for manual sorting) ---
                         const sortAsc = $('<span>')
-                            .html(' &#x25B2; ') // Up arrow
+                            .html(' &#x25B2; ') 
                             .attr('title', 'Sort Ascending')
                             .css('cursor', 'pointer')
                             .on('click', function () {
@@ -77,7 +99,7 @@ function loadCSV() {
                             .appendTo(controlsContainer);
 
                         const sortDesc = $('<span>')
-                            .html(' &#x25BC; ') // Down arrow
+                            .html(' &#x25BC; ')
                             .attr('title', 'Sort Descending')
                             .css('cursor', 'pointer')
                             .on('click', function () {
@@ -92,7 +114,6 @@ function loadCSV() {
                             .css('margin-left', '5px') 
                             .on('change', function () {
                                 const val = $.fn.dataTable.util.escapeRegex($(this).val());
-                                // Search performs exact match filtering
                                 column.search(val ? '^' + val + '$' : '', true, false).draw();
                             });
                         
