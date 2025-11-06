@@ -6,7 +6,7 @@ const CSV_URL = 'https://cors-anywhere.herokuapp.com/https://docs.google.com/spr
 // *** 🌟 MASTER LIST OF ALL HEADERS IN THE CORRECT DISPLAY ORDER 🌟 ***
 // This list dictates the order the columns will appear in the table AND the CSV export.
 const MASTER_HEADERS = [
-    "Row ID",
+    "Row ID", // This will now map to the value in the CSV's original first column (index 0)
     "Appt Type", 
     "FC", 
     "Client", 
@@ -39,6 +39,18 @@ const MASTER_HEADERS = [
     "Absconding"
 ];
 
+// *** DATE COLUMNS FOR TARGETED FORMATTING ***
+const DATE_HEADERS = [
+    "Gate In Time", 
+    "On Dock Time", 
+    "Unloading Start Time", 
+    "Unloading End Time", 
+    "Gate Out Time",
+    "Notification Date",
+    "Requisite Date", 
+    "Scheduled Date"
+];
+
 // Helper function to convert MM/DD/YYYY to DD-MMM-YYYY
 function formatDate(dateString) {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
@@ -63,7 +75,6 @@ function formatDate(dateString) {
     return dateString;
 }
 
-
 function loadCSV() {
     $.ajax({
         url: CSV_URL,
@@ -74,59 +85,77 @@ function loadCSV() {
             const dataRowsOnly = allRows.slice(1); 
             const csvHeaders = allRows[0].split(',').map(h => h.trim());
 
-            // 1. Create a map to quickly find the original CSV column index by its header name
+            // 1. Create a map for quick lookup of original CSV index by header name
+            // The first column data is currently unlabeled in this map, but its index is 0.
             const headerIndexMap = new Map(csvHeaders.map((header, index) => [header, index]));
 
-            // 2. Reconstruct the data rows according to the MASTER_HEADERS order
+            // 2. Determine which headers in MASTER_HEADERS correspond to which original column index
+            // This includes the implicit mapping of 'Row ID' to CSV index 0.
+            const masterHeaderMap = new Map();
+            MASTER_HEADERS.forEach((masterHeader, index) => {
+                if (masterHeader === "Row ID") {
+                    // Map 'Row ID' to the first column of the raw CSV data
+                    masterHeaderMap.set(masterHeader, 0); 
+                } else {
+                    // Map all other headers by looking up their index in the CSV header list
+                    const originalIndex = headerIndexMap.get(masterHeader);
+                    if (originalIndex !== undefined) {
+                        masterHeaderMap.set(masterHeader, originalIndex);
+                    }
+                }
+            });
+
+            // 3. Reconstruct the data rows according to the MASTER_HEADERS order
             let processedRows = dataRowsOnly
                 .filter(row => row.trim() !== '')
                 .map((row, rowIndex) => {
                     const originalCells = row.split(',');
-                    const newRow = [rowIndex + 1]; // Start with Row ID (1-based)
+                    const newRow = []; 
                     
-                    // Iterate through MASTER_HEADERS (skipping the "Row ID" at index 0)
-                    MASTER_HEADERS.slice(1).forEach(masterHeader => {
-                        // Find the original index of this column in the raw CSV data
-                        const originalIndex = headerIndexMap.get(masterHeader);
+                    // Iterate through MASTER_HEADERS in the desired display order
+                    MASTER_HEADERS.forEach(masterHeader => {
+                        // Find the original index for this master header
+                        const originalIndex = masterHeaderMap.get(masterHeader);
                         let cellValue = '';
 
-                        // If the column exists in the CSV, get its value
                         if (originalIndex !== undefined && originalCells[originalIndex] !== undefined) {
                             cellValue = originalCells[originalIndex].trim();
                         }
                         
-                        // Apply date formatting (note: cellValue could be '' if column not found/blank)
-                        newRow.push(formatDate(cellValue));
+                        // Check if this column needs date formatting (including the date fix)
+                        if (DATE_HEADERS.includes(masterHeader)) {
+                            cellValue = formatDate(cellValue);
+                        }
+                        
+                        newRow.push(cellValue);
                     });
                     
-                    // The newRow now contains all columns in the exact MASTER_HEADERS order.
                     return newRow;
                 });
             
-            // 3. Prepare the DataTables columns based on MASTER_HEADERS
+            // 4. Prepare the DataTables columns based on MASTER_HEADERS
             const columns = MASTER_HEADERS.map((header, index) => ({
                 title: header,
-                data: index, // Data index now directly corresponds to the MASTER_HEADERS index
-                orderable: index !== 0 // Row ID is orderable, others will be handled by custom controls
+                data: index,
+                orderable: !DATE_HEADERS.includes(header) // Keep date columns not orderable if they contain custom format
             }));
 
             // Initialize the DataTable
             const table = $('#myDataTable').DataTable({
-                data: processedRows, // Use the reordered and pre-pended data
+                data: processedRows, 
                 columns: columns,
                 
                 dom: 'Btr',
                 paging: false,
                 searching: false,
-                order: [[ 0, 'asc' ]],
+                order: [[ 0, 'asc' ]], // Default sort on Row ID (the actual data value)
                 
-                // --- Download Button Fix: Uses MASTER_HEADERS for a clean output ---
+                // --- Download Button Fix ---
                 buttons: [
                     {
                         extend: 'csvHtml5',
                         customize: function(csv) {
                             const rows = csv.split('\n');
-                            // Replace the first row with the clean, quoted master headers
                             rows[0] = '"' + MASTER_HEADERS.join('","') + '"';
                             return rows.join('\n');
                         }
@@ -165,8 +194,8 @@ function loadCSV() {
                             .css({'flex-shrink': '0'})
                             .appendTo(titleContainer);
 
-                        // Only add controls if it's NOT the Row ID column
-                        if (originalText !== "Row ID") {
+                        // Only add controls if it's NOT a custom date column
+                        if (!DATE_HEADERS.includes(originalText)) {
                             const controlsContainer = $('<div>')
                                 .css('display', 'flex')
                                 .appendTo(titleContainer);
@@ -204,7 +233,7 @@ function loadCSV() {
                             
                             // Populate the select list with unique values
                             column.data().unique().sort().each(function (d, j) {
-                                if(d !== null && d.trim() !== '') {
+                                if(d !== null && d.toString().trim() !== '') {
 			                        select.append('<option value="' + d + '">' + d + '</option>');
                                 }
                             });
