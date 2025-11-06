@@ -1,57 +1,36 @@
 // ***************************************************************
 // *** ACTION REQUIRED: UPDATE THIS LINE WITH YOUR PROXIED CSV URL ***
 // ***************************************************************
-const CSV_URL = 'https://cors-anywhere.herokuapp.com/https://docs.google.com/spreadsheets/d/e/2PACX-1vS28maOKEZTzlyYj1aNBCQueFiOXycVN_JkQcjPVPl1XFHWTjTel9FA0n0o7GEWAU1Wk93lt4hOMY1s/pub?gid=1596417357&single=true&output=csv'; 
-
-// *** HARD-CODED COLUMN TITLES IN CORRECT ORDER ***
-const DESIRED_HEADERS = [
-    "Appt ID (External)",
-    "Vehicle Registration Number",
-    "Vehicle Size",
-    "Gate In Time",
-    "No. of Invoices",
-    "Units as Per Documents",
-    "On Dock Time",
-    "Good Units",
-    "Damaged Units",
-    "Short Units",
-    "Total Units",
-    "Manpower Deployed",
-    "Unloading Start Time",
-    "Unloading End Time",
-    "Damaged Units Loaded",
-    "Gate Out Time",
-    "POD",
-    "Validated",
-    "CB",
-    "Null Status",
-    "Absconding"
-];
-// *************************************************************
+const CSV_URL = 'https://cors-anywhere.herokuapp.com/https://docs.google.com/spreadsheets/d/e/2PACX-1vS28maOKEZTzlyYj1aNBCQueFiOXycVN_JkQcjPVPl1XFHWTjTel9FA0n0o7GEWAU1Wk93lt4hOMY1s/pub?gid=1596417357&single=true&output=csv'; 
 
 // Helper function to convert MM/DD/YYYY to DD-MMM-YYYY
 function formatDate(dateString) {
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
                         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     
     // Regex to match MM/DD/YYYY with optional time (HH:MM:SS) using the '/' separator
+    // Example input: 10/13/2025 12:01:00
     const regex = /(\d{1,2})\/(\d{1,2})\/(\d{4})(\s.*)?/;
     const match = dateString.match(regex);
     
     if (match) {
-        let monthIndex = parseInt(match[1]) - 1;
+        // match[1] = MM, match[2] = DD, match[3] = YYYY, match[4] = optional time
+        let monthIndex = parseInt(match[1]) - 1; // Month is 0-indexed for array
         const day = match[2];
         const year = match[3];
-        const time = match[4] ? match[4].trim() : '';
+        const time = match[4] ? match[4].trim() : ''; // Get time string if present
+
+        // Get month abbreviation
         const monthAbbr = monthNames[monthIndex];
 
+        // Format: DD-MMM-YYYY or DD-MMM-YYYY HH:MM:SS
         let formattedDate = `${day}-${monthAbbr}-${year}`;
         if (time) {
              formattedDate += ` ${time}`;
         }
         return formattedDate;
     }
-    return dateString;
+    return dateString; // Return original string if no date pattern is found
 }
 
 
@@ -62,61 +41,62 @@ function loadCSV() {
         success: function(data) {
             
             const allRows = data.split(/\r?\n|\r/);
-            // Remove the header row from data sent to DataTables
-            const dataRowsOnly = allRows.slice(1);
-            
-            // Split the remaining rows into cells (array of arrays)
-            let rows = dataRowsOnly.map(row => row.split(','));
+            const headers = allRows[0].split(',').map(h => h.trim()); // Read and trim headers
+            let rows = allRows.slice(1).map(row => row.split(','));
 
             // Loop through ALL rows and cells to apply date formatting
-            rows = rows.map(row => 
+            rows = rows.map(row => 
                 row.map(cell => formatDate(cell.trim()))
             );
 
             // Prepare the structure for DataTables
-            const columns = DESIRED_HEADERS.map((header, index) => ({
+            const columns = headers.map(header => ({
                 title: header,
-                data: index, // Data is the column index
-                orderable: true 
+                data: headers.indexOf(header),
+                orderable: false 
             }));
             
+            // Define the clean headers for CSV export only (must match the order of your CSV)
+            const cleanHeaders = [
+                'Appt ID (External)', 'Vehicle Registration Number', 'Vehicle Size', 
+                'Gate In Time', 'No. of Invoices', 'Units as Per Documents', 
+                'On Dock Time', 'Good Units', 'Damaged Units', 'Short Units', 
+                'Total Units', 'Manpower Deployed', 'Unloading Start Time', 
+                'Unloading End Time', 'Damaged Units Loaded', 'Gate Out Time', 
+                'POD', 'Validated', 'CB', 'Null Status', 'Absconding', 
+                'Appt Type', 'FC', 'Client', 'Brand', 
+                'Item Classification', 'Units', 'Notification Date', 
+                'Requisite Date', 'Scheduled Date'
+                // NOTE: This list has 30 columns. Ensure it matches your sheet's column count and order.
+            ];
+
             // Initialize the DataTable
             const table = $('#myDataTable').DataTable({
                 data: rows,
                 columns: columns,
                 
-                dom: 'Btr',
-                paging: false,
-                searching: false,
-                order: [[ 0, 'asc' ]],
-
-                // 🌟 CSV DOWNLOAD FIX IS HERE 🌟
+                dom: 'Btr', // (B)uttons, (t)able, (r)emaining processing
+                paging: false, // Single-page view
+                searching: false, // Disable global search
+                order: [[ 0, 'asc' ]], // Default sort on first column
+                
+                // --- Download Button Fix: Only CSV, with clean header logic ---
                 buttons: [
                     {
                         extend: 'csvHtml5',
-                        header: true,
-                        exportOptions: {
-                            // CRITICAL FIX: Strip all HTML from the exported data (including the header)
-                            stripHtml: true, 
-                            decodeEntities: true,
-                            // Ensure data rows are also cleaned if necessary (though the header is the main issue)
-                            format: {
-                                header: function ( data, column, row ) {
-                                    // Use a temporary div to strip HTML, then trim and return plain text
-                                    const tempDiv = document.createElement("div");
-                                    tempDiv.innerHTML = data;
-                                    return tempDiv.textContent || tempDiv.innerText || "";
-                                }
-                            }
+                        customize: function(csv) {
+                            // Split the CSV into rows
+                            const rows = csv.split('\n');
+                            
+                            // Replace the first row (the messy header) with the clean headers
+                            // Wrapped in quotes for robust handling of spaces/commas in names
+                            rows[0] = '"' + cleanHeaders.join('","') + '"';
+
+                            return rows.join('\n');
                         }
                     }
                 ],
-                // 🌟 END CSV DOWNLOAD FIX 🌟
-                
-                // Forcefully clear all header cells before custom rendering
-                headerCallback: function( thead, data, start, end, display ) {
-                    $(thead).find('th').empty();
-                },
+                // --- End Download Button Fix ---
                 
                 // --- Custom Header/Filter/Sort Logic ---
                 initComplete: function () {
@@ -125,59 +105,49 @@ function loadCSV() {
                     api.columns().every(function (colIdx) {
                         const column = this;
                         const header = $(column.header());
-                        const originalText = columns[colIdx].title; 
+                        const originalText = header.text();
 
-                        // Clear the header content (already done by headerCallback, but good for safety)
                         header.html('');
-                        header.removeClass('sorting sorting_asc sorting_desc');
 
                         const titleContainer = $('<div>')
                             .css({
                                 'display': 'flex',
                                 'justify-content': 'space-between',
                                 'align-items': 'center',
-                                'width': '100%',
-                                'flex-wrap': 'nowrap' 
+                                'width': '100%'
                             })
                             .appendTo(header);
 
-                        // Use the clean original text for the display name
-                        $('<span>').text(originalText)
-                            .css({'flex-shrink': '0'})
-                            .appendTo(titleContainer);
+                        $('<span>').text(originalText).appendTo(titleContainer);
 
                         const controlsContainer = $('<div>')
                             .css('display', 'flex')
                             .appendTo(titleContainer);
 
-                        // --- Add Sort Arrows (using safe UTF-8 characters) ---
-                        $('<span>')
-                            .html(' &#9650; ') // Up Arrow
+                        // --- Add Sort Arrows (for manual sorting) ---
+                        const sortAsc = $('<span>')
+                            .html(' &#x25B2; ') // Up arrow
                             .attr('title', 'Sort Ascending')
                             .css('cursor', 'pointer')
-                            .on('click', function (e) {
-                                e.stopPropagation();
+                            .on('click', function () {
                                 column.order('asc').draw();
                             })
                             .appendTo(controlsContainer);
 
-                        $('<span>')
-                            .html(' &#9660; ') // Down Arrow
+                        const sortDesc = $('<span>')
+                            .html(' &#x25BC; ') // Down arrow
                             .attr('title', 'Sort Descending')
                             .css('cursor', 'pointer')
-                            .on('click', function (e) {
-                                e.stopPropagation(); 
+                            .on('click', function () {
                                 column.order('desc').draw();
                             })
                             .appendTo(controlsContainer);
 
+
                         // --- Add Filter Dropdown (Spreadsheet style) ---
                         const select = $('<select><option value="">Filter</option></select>')
                             .appendTo(controlsContainer)
-                            .css({
-                                'margin-left': '5px',
-                                'max-width': '100px' 
-                            })
+                            .css('margin-left', '5px') 
                             .on('change', function () {
                                 const val = $.fn.dataTable.util.escapeRegex($(this).val());
                                 column.search(val ? '^' + val + '$' : '', true, false).draw();
