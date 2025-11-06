@@ -3,7 +3,7 @@
 // ***************************************************************
 const CSV_URL = 'https://cors-anywhere.herokuapp.com/https://docs.google.com/spreadsheets/d/e/2PACX-1vS28maOKEZTzlyYj1aNBCQueFiOXycVN_JkQcjPVPl1XFHWTjTel9FA0n0o7GEWAU1Wk93lt4hOMY1s/pub?gid=1596417357&single=true&output=csv'; 
 
-// *** CORRECTION: HARD-CODED COLUMN TITLES IN CORRECT ORDER ***
+// *** HARD-CODED COLUMN TITLES IN CORRECT ORDER ***
 const DESIRED_HEADERS = [
     "Appt ID (External)",
     "Vehicle Registration Number",
@@ -66,10 +66,13 @@ function loadCSV() {
         success: function(data) {
             
             const allRows = data.split(/\r?\n|\r/);
-            // *** CORRECTION: IGNORE the messy first row (headers) from CSV data ***
-            // const headers = allRows[0].split(',').map(h => h.trim()); 
-            // Start mapping the data from the second row (index 1)
-            let rows = allRows.slice(1).map(row => row.split(','));
+            // *** CRITICAL FIX: Ensure the header row is removed from data sent to DataTables ***
+            // The data variable holds the raw CSV text. Remove the first line (headers) here.
+            // This prevents the original CSV headers from ever being processed.
+            const dataRowsOnly = allRows.slice(1);
+            
+            // Split the remaining rows into cells (array of arrays)
+            let rows = dataRowsOnly.map(row => row.split(','));
 
             // Loop through ALL rows and cells to apply date formatting
             rows = rows.map(row => 
@@ -77,10 +80,10 @@ function loadCSV() {
             );
 
             // Prepare the structure for DataTables
-            // *** CORRECTION: Use the DESIRED_HEADERS array to create columns ***
+            // Use the DESIRED_HEADERS array to create columns
             const columns = DESIRED_HEADERS.map((header, index) => ({
                 title: header,
-                data: index, // Since we are loading an array of arrays, data is the column index
+                data: index, // Data is the column index
                 orderable: true // Re-enabling standard DataTables sorting
             }));
             
@@ -94,12 +97,11 @@ function loadCSV() {
                 searching: false, // Disable global search
                 order: [[ 0, 'asc' ]], // Default sort on first column
                 
-                // --- Download Button Fix: Optimized for speed and correct headers ---
+                // --- Download Button Fix ---
                 buttons: [
                     {
                         extend: 'csvHtml5',
                         header: true,
-                        // Tell DataTables to use the column titles we defined above for the CSV export
                         exportOptions: {
                             stripHtml: false,
                             decodeEntities: false 
@@ -116,8 +118,7 @@ function loadCSV() {
                         const column = this;
                         const header = $(column.header());
                         
-                        // *** CORRECTION: Get the clean title directly from the DataTables config ***
-                        // This ensures we get the text from the DESIRED_HEADERS array.
+                        // Get the clean title directly from the DataTables config
                         const originalText = columns[colIdx].title; 
 
                         // Clear the header content before rebuilding
@@ -131,14 +132,14 @@ function loadCSV() {
                                 'justify-content': 'space-between',
                                 'align-items': 'center',
                                 'width': '100%',
-                                'flex-wrap': 'nowrap' // Prevent wrapping
+                                'flex-wrap': 'nowrap' 
                             })
                             .appendTo(header);
 
                         // Use the clean original text for the display name
                         $('<span>').text(originalText)
                             .css({
-                                'flex-shrink': '0' // Prevent title from shrinking
+                                'flex-shrink': '0' 
                             })
                             .appendTo(titleContainer);
 
@@ -147,13 +148,12 @@ function loadCSV() {
                             .appendTo(titleContainer);
 
                         // --- Add Sort Arrows (using safe UTF-8 characters) ---
-                        // Note: DataTables handles the actual sorting, these click handlers just trigger it
                         const sortAsc = $('<span>')
                             .html(' &#9650; ') // Black up-pointing triangle
                             .attr('title', 'Sort Ascending')
                             .css('cursor', 'pointer')
                             .on('click', function (e) {
-                                e.stopPropagation(); // Prevent native sorting from triggering twice
+                                e.stopPropagation();
                                 column.order('asc').draw();
                             })
                             .appendTo(controlsContainer);
@@ -163,7 +163,7 @@ function loadCSV() {
                             .attr('title', 'Sort Descending')
                             .css('cursor', 'pointer')
                             .on('click', function (e) {
-                                e.stopPropagation(); // Prevent native sorting from triggering twice
+                                e.stopPropagation(); 
                                 column.order('desc').draw();
                             })
                             .appendTo(controlsContainer);
@@ -174,7 +174,7 @@ function loadCSV() {
                             .appendTo(controlsContainer)
                             .css({
                                 'margin-left': '5px',
-                                'max-width': '100px' // Add a max-width for better appearance
+                                'max-width': '100px' 
                             })
                             .on('change', function () {
                                 const val = $.fn.dataTable.util.escapeRegex($(this).val());
