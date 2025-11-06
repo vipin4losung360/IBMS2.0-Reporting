@@ -4,9 +4,9 @@
 const CSV_URL = 'https://cors-anywhere.herokuapp.com/https://docs.google.com/spreadsheets/d/e/2PACX-1vS28maOKEZTzlyYj1aNBCQueFiOXycVN_JkQcjPVPl1XFHWTjTel9FA0n0o7GEWAU1Wk93lt4hOMY1s/pub?gid=1596417357&single=true&output=csv'; 
 
 // *** 🌟 MASTER LIST OF ALL HEADERS IN THE CORRECT DISPLAY ORDER 🌟 ***
-// This list dictates the order the columns will appear in the table AND the CSV export.
+// (The full list must be maintained here based on your last request)
 const MASTER_HEADERS = [
-    "Row ID", // This will now map to the value in the CSV's original first column (index 0)
+    "Row ID",
     "Appt Type", 
     "FC", 
     "Client", 
@@ -39,30 +39,37 @@ const MASTER_HEADERS = [
     "Absconding"
 ];
 
-// *** DATE COLUMNS FOR TARGETED FORMATTING ***
+// *** DATE AND DATE-TIME COLUMNS FOR TARGETED FORMATTING ***
 const DATE_HEADERS = [
+    "Notification Date",
+    "Requisite Date", 
+    "Scheduled Date",
     "Gate In Time", 
     "On Dock Time", 
     "Unloading Start Time", 
     "Unloading End Time", 
-    "Gate Out Time",
-    "Notification Date",
-    "Requisite Date", 
-    "Scheduled Date"
+    "Gate Out Time"
 ];
 
-// Helper function to convert MM/DD/YYYY to DD-MMM-YYYY
+// Helper function to convert MM/DD/YYYY [HH:MM:SS] to DD-MMM-YYYY [HH:MM:SS]
 function formatDate(dateString) {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
                         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     
+    // Modified regex:
+    // (\d{1,2})\/(\d{1,2})\/(\d{4})   -> Captures M/D/YYYY
+    // (?:,\s*\d{1,2}:\d{2}:\d{2})?    -> Non-capturing group for optional time component (in case of comma separator)
+    // (\s.*)?                        -> Captures optional time separated by space (standard Google Sheet format)
     const regex = /(\d{1,2})\/(\d{1,2})\/(\d{4})(\s.*)?/;
     const match = dateString.match(regex);
     
     if (match) {
+        // match[1] = MM, match[2] = DD, match[3] = YYYY
         let monthIndex = parseInt(match[1]) - 1;
-        const day = match[2];
+        const day = match[2].padStart(2, '0'); // Pad day to ensure DD format
         const year = match[3];
+        
+        // Match[4] contains the time (if present)
         const time = match[4] ? match[4].trim() : '';
         const monthAbbr = monthNames[monthIndex];
 
@@ -72,7 +79,7 @@ function formatDate(dateString) {
         }
         return formattedDate;
     }
-    return dateString;
+    return dateString; // Return original string if no date pattern is found
 }
 
 function loadCSV() {
@@ -86,35 +93,30 @@ function loadCSV() {
             const csvHeaders = allRows[0].split(',').map(h => h.trim());
 
             // 1. Create a map for quick lookup of original CSV index by header name
-            // The first column data is currently unlabeled in this map, but its index is 0.
             const headerIndexMap = new Map(csvHeaders.map((header, index) => [header, index]));
 
-            // 2. Determine which headers in MASTER_HEADERS correspond to which original column index
-            // This includes the implicit mapping of 'Row ID' to CSV index 0.
+            // 2. Map MASTER_HEADERS to the original CSV column index (including Row ID = index 0)
             const masterHeaderMap = new Map();
-            MASTER_HEADERS.forEach((masterHeader, index) => {
+            MASTER_HEADERS.forEach(masterHeader => {
+                let originalIndex;
                 if (masterHeader === "Row ID") {
-                    // Map 'Row ID' to the first column of the raw CSV data
-                    masterHeaderMap.set(masterHeader, 0); 
+                    originalIndex = 0; // Map 'Row ID' to the raw CSV's first column
                 } else {
-                    // Map all other headers by looking up their index in the CSV header list
-                    const originalIndex = headerIndexMap.get(masterHeader);
-                    if (originalIndex !== undefined) {
-                        masterHeaderMap.set(masterHeader, originalIndex);
-                    }
+                    originalIndex = headerIndexMap.get(masterHeader);
+                }
+                if (originalIndex !== undefined) {
+                    masterHeaderMap.set(masterHeader, originalIndex);
                 }
             });
 
-            // 3. Reconstruct the data rows according to the MASTER_HEADERS order
+            // 3. Reconstruct the data rows according to the MASTER_HEADERS order and apply formatting
             let processedRows = dataRowsOnly
                 .filter(row => row.trim() !== '')
-                .map((row, rowIndex) => {
+                .map(row => {
                     const originalCells = row.split(',');
                     const newRow = []; 
                     
-                    // Iterate through MASTER_HEADERS in the desired display order
                     MASTER_HEADERS.forEach(masterHeader => {
-                        // Find the original index for this master header
                         const originalIndex = masterHeaderMap.get(masterHeader);
                         let cellValue = '';
 
@@ -122,7 +124,7 @@ function loadCSV() {
                             cellValue = originalCells[originalIndex].trim();
                         }
                         
-                        // Check if this column needs date formatting (including the date fix)
+                        // Apply date formatting to all identified date/time columns
                         if (DATE_HEADERS.includes(masterHeader)) {
                             cellValue = formatDate(cellValue);
                         }
@@ -137,7 +139,8 @@ function loadCSV() {
             const columns = MASTER_HEADERS.map((header, index) => ({
                 title: header,
                 data: index,
-                orderable: !DATE_HEADERS.includes(header) // Keep date columns not orderable if they contain custom format
+                // Disable ordering for all custom-formatted date/time columns
+                orderable: !DATE_HEADERS.includes(header)
             }));
 
             // Initialize the DataTable
@@ -148,7 +151,7 @@ function loadCSV() {
                 dom: 'Btr',
                 paging: false,
                 searching: false,
-                order: [[ 0, 'asc' ]], // Default sort on Row ID (the actual data value)
+                order: [[ 0, 'asc' ]],
                 
                 // --- Download Button Fix ---
                 buttons: [
