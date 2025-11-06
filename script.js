@@ -41,7 +41,7 @@ function loadCSV() {
         success: function(data) {
             
             const allRows = data.split(/\r?\n|\r/);
-            const headers = allRows[0].split(',');
+            const headers = allRows[0].split(',').map(h => h.trim()); // Read and trim headers
             let rows = allRows.slice(1).map(row => row.split(','));
 
             // Loop through ALL rows and cells to apply date formatting
@@ -56,6 +56,20 @@ function loadCSV() {
                 orderable: false 
             }));
             
+            // Define the clean headers for CSV export only (must match the order of your CSV)
+            const cleanHeaders = [
+                'Appt ID (External)', 'Vehicle Registration Number', 'Vehicle Size', 
+                'Gate In Time', 'No. of Invoices', 'Units as Per Documents', 
+                'On Dock Time', 'Good Units', 'Damaged Units', 'Short Units', 
+                'Total Units', 'Manpower Deployed', 'Unloading Start Time', 
+                'Unloading End Time', 'Damaged Units Loaded', 'Gate Out Time', 
+                'POD', 'Validated', 'CB', 'Null Status', 'Absconding', 
+                'Appt Type', 'FC', 'Client', 'Brand', 
+                'Item Classification', 'Units', 'Notification Date', 
+                'Requisite Date', 'Scheduled Date'
+                // NOTE: This list has 30 columns. Ensure it matches your sheet's column count and order.
+            ];
+
             // Initialize the DataTable
             const table = $('#myDataTable').DataTable({
                 data: rows,
@@ -66,10 +80,23 @@ function loadCSV() {
                 searching: false, // Disable global search
                 order: [[ 0, 'asc' ]], // Default sort on first column
                 
+                // --- Download Button Fix: Only CSV, with clean header logic ---
                 buttons: [
-                    'csvHtml5',
-                    'excelHtml5'
+                    {
+                        extend: 'csvHtml5',
+                        customize: function(csv) {
+                            // Split the CSV into rows
+                            const rows = csv.split('\n');
+                            
+                            // Replace the first row (the messy header) with the clean headers
+                            // Wrapped in quotes for robust handling of spaces/commas in names
+                            rows[0] = '"' + cleanHeaders.join('","') + '"';
+
+                            return rows.join('\n');
+                        }
+                    }
                 ],
+                // --- End Download Button Fix ---
                 
                 // --- Custom Header/Filter/Sort Logic ---
                 initComplete: function () {
