@@ -4,7 +4,6 @@
 const CSV_URL = 'https://cors-anywhere.herokuapp.com/https://docs.google.com/spreadsheets/d/e/2PACX-1vS28maOKEZTzlyYj1aNBCQueFiOXycVN_JkQcjPVPl1XFHWTjTel9FA0n0o7GEWAU1Wk93lt4hOMY1s/pub?gid=1596417357&single=true&output=csv'; 
 
 // *** 🌟 MASTER LIST OF ALL HEADERS IN THE CORRECT DISPLAY ORDER 🌟 ***
-// (The full list must be maintained here based on your last request)
 const MASTER_HEADERS = [
     "Row ID",
     "Appt Type", 
@@ -53,23 +52,28 @@ const DATE_HEADERS = [
 
 // Helper function to convert MM/DD/YYYY [HH:MM:SS] to DD-MMM-YYYY [HH:MM:SS]
 function formatDate(dateString) {
+    // 1. Strip leading/trailing quotes and trim whitespace
+    let cleanDateString = dateString.replace(/^"|"$/g, '').trim();
+
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
                         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     
-    // Modified regex:
-    // (\d{1,2})\/(\d{1,2})\/(\d{4})   -> Captures M/D/YYYY
-    // (?:,\s*\d{1,2}:\d{2}:\d{2})?    -> Non-capturing group for optional time component (in case of comma separator)
-    // (\s.*)?                        -> Captures optional time separated by space (standard Google Sheet format)
-    const regex = /(\d{1,2})\/(\d{1,2})\/(\d{4})(\s.*)?/;
-    const match = dateString.match(regex);
+    // Regex handles various M/D/YYYY formats with optional time
+    // Group 1: Month (1 or 2 digits)
+    // Group 2: Day (1 or 2 digits)
+    // Group 3: Year (4 digits)
+    // Group 4: Optional Time/rest of the string
+    const regex = /(\d{1,2})\/(\d{1,2})\/(\d{4})(.*)?/;
+    const match = cleanDateString.match(regex);
     
     if (match) {
         // match[1] = MM, match[2] = DD, match[3] = YYYY
         let monthIndex = parseInt(match[1]) - 1;
-        const day = match[2].padStart(2, '0'); // Pad day to ensure DD format
+        // Ensure day is padded for DD format
+        const day = match[2].padStart(2, '0');
         const year = match[3];
         
-        // Match[4] contains the time (if present)
+        // Match[4] contains the time/rest (if present)
         const time = match[4] ? match[4].trim() : '';
         const monthAbbr = monthNames[monthIndex];
 
@@ -79,7 +83,8 @@ function formatDate(dateString) {
         }
         return formattedDate;
     }
-    return dateString; // Return original string if no date pattern is found
+    // If the regex doesn't match, return the cleaned string
+    return cleanDateString; 
 }
 
 function loadCSV() {
@@ -113,6 +118,7 @@ function loadCSV() {
             let processedRows = dataRowsOnly
                 .filter(row => row.trim() !== '')
                 .map(row => {
+                    // Splitting handles standard CSV, but we use the map to correctly locate data
                     const originalCells = row.split(',');
                     const newRow = []; 
                     
@@ -121,11 +127,13 @@ function loadCSV() {
                         let cellValue = '';
 
                         if (originalIndex !== undefined && originalCells[originalIndex] !== undefined) {
+                            // Trim the raw cell value
                             cellValue = originalCells[originalIndex].trim();
                         }
                         
                         // Apply date formatting to all identified date/time columns
                         if (DATE_HEADERS.includes(masterHeader)) {
+                            // Use the new, robust formatDate function
                             cellValue = formatDate(cellValue);
                         }
                         
@@ -139,7 +147,6 @@ function loadCSV() {
             const columns = MASTER_HEADERS.map((header, index) => ({
                 title: header,
                 data: index,
-                // Disable ordering for all custom-formatted date/time columns
                 orderable: !DATE_HEADERS.includes(header)
             }));
 
@@ -153,7 +160,7 @@ function loadCSV() {
                 searching: false,
                 order: [[ 0, 'asc' ]],
                 
-                // --- Download Button Fix ---
+                // --- CSV Download Fix (Unchanged) ---
                 buttons: [
                     {
                         extend: 'csvHtml5',
@@ -161,17 +168,28 @@ function loadCSV() {
                             const rows = csv.split('\n');
                             rows[0] = '"' + MASTER_HEADERS.join('","') + '"';
                             return rows.join('\n');
-                        }
+                        },
+                        exportOptions: {
+                            modifier: {
+                                page: 'all', 
+                                search: 'applied' 
+                            },
+                            format: {
+                                body: function ( data, row, column, node ) {
+                                    return $(node).html();
+                                }
+                            }
+                        }
                     }
                 ],
-                // --- End Download Button Fix ---
+                // --- End CSV Download Fix ---
                 
                 // Forcefully clear all header cells before custom rendering
                 headerCallback: function( thead, data, start, end, display ) {
                     $(thead).find('th').empty();
                 },
                 
-                // --- Custom Header/Filter/Sort Logic ---
+                // --- Custom Header/Filter/Sort Logic (Unchanged) ---
                 initComplete: function () {
                     const api = this.api();
 
