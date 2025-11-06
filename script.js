@@ -141,35 +141,47 @@ function loadCSV() {
                 searching: false,
                 order: [[ 0, 'asc' ]],
                 
-                // --- 🚀 Export Buttons (Including new "Copy" button) ---
+                // --- 🚀 Export Buttons (Updated for TXT/TSV Download) ---
                 buttons: [
                     {
-                        extend: 'copyHtml5',
-                        text: 'Copy to Excel (TSV)', // Custom button text
-                        title: 'Data Export',
+                        extend: 'csvHtml5',
+                        text: 'Download TXT (TSV)', // The new button text
+                        filename: 'data_export', // File name
+                        extension: '.txt', // Forces .txt extension
+                        fieldSeparator: '\t', // IMPORTANT: Use tab separator for TSV
+                        header: true,
+                        customize: function(csv) {
+                            // Replace all commas in the data rows with tabs for TSV
+                            // NOTE: This assumes commas are not needed *within* cell data.
+                            let tsv = csv.split('\n').map((row, index) => {
+                                if (index === 0) {
+                                    // Header row: replace original headers with MASTER_HEADERS joined by tab
+                                    return MASTER_HEADERS.join('\t');
+                                }
+                                // Data rows: replace commas with tabs
+                                return row.replace(/,/g, '\t');
+                            }).join('\n');
+                            
+                            // Remove all quotes added by the CSV export, as they interfere with TSV copy/paste
+                            return tsv.replace(/"/g, '');
+                        },
                         exportOptions: {
                             modifier: {
                                 page: 'all', 
                                 search: 'applied' 
                             },
-                            // Use the cell's displayed content, not the raw source data
+                            // Ensures we use the HTML/rendered data (with formatted dates/IDs)
                             format: {
                                 body: function ( data, row, column, node ) {
                                     return $(node).html();
                                 }
                             }
-                        },
-                        // Customizes the header row for the copy action
-                        header: true,
-                        customize: function ( win ) {
-                            // The actual button uses the displayed headers, but we can ensure they are clean
-                            var headerRow = '"' + MASTER_HEADERS.join('"\t"') + '"'; // Use tab separator for Excel copy
-                            win.document.querySelector('body > table > thead > tr').innerHTML = headerRow;
                         }
                     },
                     {
                         extend: 'csvHtml5',
-                        text: 'Download CSV', // Custom button text
+                        text: 'Download CSV', // Original CSV button
+                        header: true,
                         customize: function(csv) {
                             const rows = csv.split('\n');
                             rows[0] = '"' + MASTER_HEADERS.join('","') + '"';
