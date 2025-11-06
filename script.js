@@ -66,14 +66,15 @@ function loadCSV() {
                 searching: false, // Disable global search
                 order: [[ 0, 'asc' ]], // Default sort on first column
                 
-                // --- Download Button Fix: Use CSV file headers directly ---
+                // --- Download Button Fix: Optimized for speed and correct headers ---
                 buttons: [
                     {
                         extend: 'csvHtml5',
-                        // This option tells the button to use the column titles 
-                        // that were established by the 'columns' configuration above, 
-                        // effectively bypassing the messy HTML headers.
-                        header: true, 
+                        header: true,
+                        exportOptions: {
+                            stripHtml: false,
+                            decodeEntities: false 
+                        }
                     }
                 ],
                 // --- End Download Button Fix ---
@@ -85,8 +86,11 @@ function loadCSV() {
                     api.columns().every(function (colIdx) {
                         const column = this;
                         const header = $(column.header());
-                        const originalText = column.settings()[0].aoColumns[colIdx].sTitle; // Get clean title
+                        
+                        // *** FIX HERE ***: Get the clean title directly from the column definition
+                        const originalText = column.settings()[0].aoColumns[colIdx].sTitle; 
 
+                        // Clear the header content before rebuilding
                         header.html('');
 
                         const titleContainer = $('<div>')
@@ -98,15 +102,16 @@ function loadCSV() {
                             })
                             .appendTo(header);
 
+                        // Use the clean original text for the display name
                         $('<span>').text(originalText).appendTo(titleContainer);
 
                         const controlsContainer = $('<div>')
                             .css('display', 'flex')
                             .appendTo(titleContainer);
 
-                        // --- Add Sort Arrows (for manual sorting) ---
+                        // --- Add Sort Arrows (using safe UTF-8 characters) ---
                         const sortAsc = $('<span>')
-                            .html(' &#x25B2; ') // Up arrow
+                            .html(' &#9650; ') // Black up-pointing triangle
                             .attr('title', 'Sort Ascending')
                             .css('cursor', 'pointer')
                             .on('click', function () {
@@ -115,7 +120,7 @@ function loadCSV() {
                             .appendTo(controlsContainer);
 
                         const sortDesc = $('<span>')
-                            .html(' &#x25BC; ') // Down arrow
+                            .html(' &#9660; ') // Black down-pointing triangle
                             .attr('title', 'Sort Descending')
                             .css('cursor', 'pointer')
                             .on('click', function () {
