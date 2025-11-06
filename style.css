@@ -29,17 +29,27 @@ h1 {
     font-weight: 600; /* Bolder text for headers */
     vertical-align: top;
     padding: 10px;
+    white-space: nowrap; /* Prevents text and controls from wrapping */
+    padding-right: 5px !important;
+}
+
+/* Style the sort arrows */
+#myDataTable thead span {
+    font-size: 1.1em;
+    padding: 0 2px;
 }
 
 /* Style the filter select dropdowns */
 #myDataTable thead select {
-    margin-top: 5px;
+    margin-top: 0px; /* Align with title */
     font-size: 0.8rem;
     padding: 2px 5px;
-    width: 95%; /* Make the dropdown fill the column */
+    width: auto !important; /* Use only space needed for dropdown */
+    min-width: 80px; 
+    height: 25px; /* Make it smaller to fit the header */
     border-radius: 4px;
     border: 1px solid #ced4da;
-    color: #495057; /* Darker text for readability */
+    color: #495057; 
 }
 
 /* Adjust the positioning of the DataTables buttons */
