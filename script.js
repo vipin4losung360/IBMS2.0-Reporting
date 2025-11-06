@@ -14,7 +14,7 @@ function formatDate(dateString) {
     const match = dateString.match(regex);
     
     if (match) {
-        // match[1] = MM, match[2] = DD, match[3] = YYYY, match[4] = optional time
+        // match[1] = MM, match[2] = DD, match[2] = YYYY, match[4] = optional time
         let monthIndex = parseInt(match[1]) - 1; // Month is 0-indexed for array
         const day = match[2];
         const year = match[3];
@@ -56,7 +56,8 @@ function loadCSV() {
                 orderable: false 
             }));
             
-            // Define the clean headers for CSV export only (must match the order of your CSV)
+            // --- FIXED: Define the clean headers for CSV export only. 
+            // This order MUST match the columns in your Google Sheet exactly.
             const cleanHeaders = [
                 'Appt ID (External)', 'Vehicle Registration Number', 'Vehicle Size', 
                 'Gate In Time', 'No. of Invoices', 'Units as Per Documents', 
@@ -67,8 +68,8 @@ function loadCSV() {
                 'Appt Type', 'FC', 'Client', 'Brand', 
                 'Item Classification', 'Units', 'Notification Date', 
                 'Requisite Date', 'Scheduled Date'
-                // NOTE: This list has 30 columns. Ensure it matches your sheet's column count and order.
             ];
+            // --- END FIXED SECTION ---
 
             // Initialize the DataTable
             const table = $('#myDataTable').DataTable({
@@ -89,7 +90,6 @@ function loadCSV() {
                             const rows = csv.split('\n');
                             
                             // Replace the first row (the messy header) with the clean headers
-                            // Wrapped in quotes for robust handling of spaces/commas in names
                             rows[0] = '"' + cleanHeaders.join('","') + '"';
 
                             return rows.join('\n');
